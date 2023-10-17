@@ -4,7 +4,7 @@ from typing import Type
 
 from core.helper import encrypter
 from core.model_providers.models.base import BaseProviderModel
-from core.model_providers.models.entity.model_params import ModelKwargsRules, KwargRule, ModelType
+from core.model_providers.models.entity.model_params import ModelKwargsRules, KwargRule, ModelType, ModelMode
 from core.model_providers.models.llm.wenxin_model import WenxinModel
 from core.model_providers.providers.base import BaseModelProvider, CredentialsValidateFailedError
 from core.third_party.langchain.llms.wenxin import Wenxin
@@ -26,18 +26,24 @@ class WenxinProvider(BaseModelProvider):
                 {
                     'id': 'ernie-bot',
                     'name': 'ERNIE-Bot',
+                    'mode': ModelMode.COMPLETION.value,
                 },
                 {
                     'id': 'ernie-bot-turbo',
                     'name': 'ERNIE-Bot-turbo',
+                    'mode': ModelMode.COMPLETION.value,
                 },
                 {
                     'id': 'bloomz-7b',
                     'name': 'BLOOMZ-7B',
+                    'mode': ModelMode.COMPLETION.value,
                 }
             ]
         else:
             return []
+
+    def _get_text_generation_model_mode(self, model_name) -> str:
+        return ModelMode.COMPLETION.value
 
     def get_model_class(self, model_type: ModelType) -> Type[BaseProviderModel]:
         """
@@ -61,13 +67,18 @@ class WenxinProvider(BaseModelProvider):
         :param model_type:
         :return:
         """
+        model_max_tokens = {
+            'ernie-bot': 4800,
+            'ernie-bot-turbo': 11200,
+        }
+
         if model_name in ['ernie-bot', 'ernie-bot-turbo']:
             return ModelKwargsRules(
-                temperature=KwargRule[float](min=0.01, max=1, default=0.95),
-                top_p=KwargRule[float](min=0.01, max=1, default=0.8),
+                temperature=KwargRule[float](min=0.01, max=1, default=0.95, precision=2),
+                top_p=KwargRule[float](min=0.01, max=1, default=0.8, precision=2),
                 presence_penalty=KwargRule[float](enabled=False),
                 frequency_penalty=KwargRule[float](enabled=False),
-                max_tokens=KwargRule[int](enabled=False),
+                max_tokens=KwargRule[int](enabled=False, max=model_max_tokens.get(model_name)),
             )
         else:
             return ModelKwargsRules(
